@@ -1,4 +1,8 @@
 import time
+import stripe
+
+# Set your Stripe API key
+stripe.api_key = "sk_test_12345"
 
 # Video call price per minute
 price = 2.0
@@ -37,10 +41,28 @@ else:
             print("Insufficient funds. The video call was cut off.")
             break
 
-    # If the user still has enough funds, deduct the cost of the call from their balance
+    # If the user still has enough funds, deduct the cost of the call from their balance using Stripe
     if balance - total_cost >= 0:
-        balance -= total_cost
+        try:
+            # Create a new charge object in Stripe
+            charge = stripe.Charge.create(
+                amount=int(total_cost * 100),  # Stripe requires amounts to be in cents
+                currency="usd",
+                description="Video call charge",
+                source="tok_visa",  # Replace with the user's Stripe token
+            )
 
-        # Print the total cost of the call and the remaining balance
-        print("Total cost: $" + str(total_cost))
-        print("Remaining balance: $" + str(balance))
+            # Update the user's account balance in your database
+            balance -= total_cost
+
+            # Print the total cost of the call and the remaining balance
+            print("Total cost: $" + str(total_cost))
+            print("Remaining balance: $" + str(balance))
+
+        except stripe.error.CardError as e:
+            # Display error message if the card is declined or invalid
+            print("Card error: " + str(e))
+        except stripe.error.StripeError as e:
+            # Display error message for any other Stripe errors
+            print("Stripe error: " + str(e))
+
